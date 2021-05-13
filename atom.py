@@ -1,46 +1,47 @@
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
-from scipy import integrate
+from vpython import *
 
-def solve_lorenz(sigma=10.0, beta=8./3, rho=28.0):
-    """Plot a solution to the Lorenz differential equations."""
+scene2 = canvas(width=500,height=500,background = vector(1,1,1))
 
-    max_time = 4.0
-    N = 30
+# Определение констант
 
-    fig = plt.figure()
-    ax = fig.add_axes([0, 0, 1, 1], projection='3d')
-    ax.axis('off')
+pi = 2*asin(1.0)                      # Определение значения пи с помощью sin (pi / 2) = 1
+a0 = 0.529177e-10                     # Радиус первой орбиты
+m_p = 1.6726219e-27                   # Масса протона
+m_e = 9.10938356e-31                  # Масса электрона
+e = 1.6021765e-19                     # Заряд электрона
+epsilon = 8.854187e-12
+v_e = e/sqrt(4*pi*epsilon*a0*m_e)     # Формула: mv^2/r = e^2/(4*pi*epsilon*r^2)
+c = 3e8
+print("Радиус первой орбиты = ",a0, " м")
+print("Скорость электрона на первой орбите = ", v_e, " м/с")
 
-    # prepare the axes limits
-    ax.set_xlim((-25, 25))
-    ax.set_ylim((-35, 35))
-    ax.set_zlim((5, 55))
-    
-    def lorenz_deriv(x_y_z, t0, sigma=sigma, beta=beta, rho=rho):
-        """Compute the time-derivative of a Lorenz system."""
-        x, y, z = x_y_z
-        return [sigma * (y - x), x * (rho - z) - y, x * y - beta * z]
+#Определение 3D-объектов
 
-    # Choose random starting points, uniformly distributed from -15 to 15
-    np.random.seed(1)
-    x0 = -15 + 30 * np.random.random((N, 3))
+nucleus = sphere(pos = vector(0,0,0), radius = 0.1*a0, velocity = vector(0,0,0), mass = m_p, charge = e, color = color.yellow)
+electron = sphere(pos = vector(1.4*a0,0,0), radius = 0.02*a0, velocity = vector(0,v_e,0), mass = m_e, charge = -e, color = color.red)
+electron.trail=curve(color=electron.color)
 
-    # Solve for the trajectories
-    t = np.linspace(0, max_time, int(250*max_time))
-    x_t = np.asarray([integrate.odeint(lorenz_deriv, x0i, t)
-                      for x0i in x0])
-    
-    # choose a different color for each trajectory
-    colors = plt.cm.viridis(np.linspace(0, 1, N))
+#Определение функции для расчета ускорения
 
-    for i in range(N):
-        x, y, z = x_t[i,:,:].T
-        lines = ax.plot(x, y, z, '-', c=colors[i])
-        plt.setp(lines, linewidth=2)
-    angle = 104
-    ax.view_init(30, angle)
-    plt.show()
+def acc():
+  dr = electron.pos - nucleus.pos
+  Force = 1./(4.*pi*epsilon)*nucleus.charge*electron.charge/(mag(dr)**2) * norm(dr)
+  m1 = electron.mass
+  return Force/m1
 
-    return t, x_t
+#Определение порядка времени и временного шага
+
+t = 0
+T_orbit = 2.*pi*a0/v_e
+t_end = 1000*T_orbit
+dt = T_orbit/1000.
+print("Период времени на первой орбите= ",T_orbit, " с")
+
+# Обновление положения электрона в цикле
+
+while (t<t_end):
+  rate(100)
+  electron.velocity = electron.velocity + acc()*dt
+  electron.pos = electron.pos + electron.velocity*dt
+  electron.trail.append(pos = electron.pos)
+  t = t+dt
